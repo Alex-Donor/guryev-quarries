@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Гурьевские каменоломни — Маршрутизация</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { margin: 0; padding: 0; }
+    #map { width: 100%; height: 100vh; cursor: default; }
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      z-index: 1000;
+    }
+    #status { margin-top: 8px; font-size: 14px; color: #333; }
+
+    #map.clickable {
+      cursor: crosshair;
+    }
+	.leaflet-control-attribution {
+    display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <button id="clear">Очистить маршрут</button>
+    <div id="status">Загрузка карты...</div>
+  </div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+  const map = L.map('map', {
+    crs: L.CRS.Simple,
+    minZoom: 0.05,
+    maxZoom: 4
+  });
+  map.zoomControl.setPosition('topright');
+
+  function distToSegment(p, v, w) {
+    const dx = w[0] - v[0];
+    const dy = w[1] - v[1];
+    const l2 = dx * dx + dy * dy;
+    if (l2 === 0) return Math.hypot(p[0] - v[0], p[1] - v[1]);
+    let t = ((p[0] - v[0]) * dx + (p[1] - v[1]) * dy) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p[0] - (v[0] + t * dx), p[1] - (v[1] + t * dy));
+  }
+
+  let segments = [];
+  let graph = {};
+  let selectedPoints = [];      // Все выбранные точки маршрута
+  let pointMarkers = [];        // Маркеры для точек
+  let routeLayer = null;        // Отображаемый маршрут
+
+  const CURSOR_TOLERANCE_PX = 1;
+
+  // Обработчик движения мыши — всегда crosshair над тоннелем
+  function handleMouseMove(e) {
+    const container = map.getContainer();
+    container.classList.remove('clickable');
+
+    if (segments.length === 0) return;
+
+    const mouse = [e.latlng.lng, e.latlng.lat];
+    const p1 = map.containerPointToLayerPoint([0, 0]);
+    const p2 = map.containerPointToLayerPoint([CURSOR_TOLERANCE_PX, 0]);
+    const tolerance = Math.abs(p2.x - p1.x);
+
+    let nearTunnel = false;
+    for (let i = 0; i < segments.length; i++) {
+      if (distToSegment(mouse, segments[i][0], segments[i][1]) <= tolerance) {
+        nearTunnel = true;
+        break;
+      }
+    }
+
+    if (nearTunnel) {
+      container.classList.add('clickable');
+    }
+  }
+
+  map.on('mousemove', handleMouseMove);
+
+  // Алгоритм Дейкстры
+  function dijkstra(graph, start, end) {
+    if (!graph[start] || !graph[end]) return null;
+    const dist = {};
+    const prev = {};
+    const unvisited = new Set();
+
+    for (const node in graph) {
+      dist[node] = node === start ? 0 : Infinity;
+      unvisited.add(node);
+    }
+
+    while (unvisited.size > 0) {
+      let current = null;
+      let minDist = Infinity;
+      for (const node of unvisited) {
+        if (dist[node] < minDist) {
+          minDist = dist[node];
+          current = node;
+        }
+      }
+
+      if (current === end || minDist === Infinity) break;
+      unvisited.delete(current);
+
+      for (const neighbor in graph[current]) {
+        if (unvisited.has(neighbor)) {
+          const alt = dist[current] + graph[current][neighbor];
+          if (alt < dist[neighbor]) {
+            dist[neighbor] = alt;
+            prev[neighbor] = current;
+          }
+        }
+      }
+    }
+
+    if (dist[end] === Infinity) return null;
+    const path = [];
+    let u = end;
+    while (u !== undefined) {
+      path.unshift(u.split(',').map(Number));
+      if (u === start) break;
+      u = prev[u];
+    }
+    return path.length > 1 ? path : null;
+  }
+
+  // Построение полного маршрута через все точки
+  function buildFullRoute() {
+    if (selectedPoints.length < 2) return;
+
+    if (routeLayer) map.removeLayer(routeLayer);
+    routeLayer = null;
+
+    const fullPath = [];
+    let totalDistance = 0;
+    let valid = true;
+
+    for (let i = 0; i < selectedPoints.length - 1; i++) {
+      const startKey = selectedPoints[i].join(',');
+      const endKey = selectedPoints[i + 1].join(',');
+      const segmentPath = dijkstra(graph, startKey, endKey);
+
+      if (!segmentPath) {
+        valid = false;
+        break;
+      }
+
+      if (i === 0) {
+        fullPath.push(...segmentPath);
+      } else {
+        fullPath.push(...segmentPath.slice(1));
+      }
+
+      for (let j = 1; j < segmentPath.length; j++) {
+        const a = segmentPath[j - 1];
+        const b = segmentPath[j];
+        totalDistance += Math.hypot(a[0] - b[0], a[1] - b[1]);
+      }
+    }
+
+    if (!valid) {
+      document.getElementById('status').textContent = 'Не удалось построить маршрут между точками';
+      return;
+    }
+
+    routeLayer = L.polyline(fullPath.map(p => [p[1], p[0]]), {
+      color: 'red',
+      weight: 4
+    }).addTo(map);
+
+    document.getElementById('status').textContent = `Маршрут: ${totalDistance.toFixed(1)} м (точек: ${selectedPoints.length})`;
+  }
+
+  // Обработка кликов
+  map.on('click', function(e) {
+    if (segments.length === 0) return;
+
+    const click = [e.latlng.lng, e.latlng.lat];
+    const TOLERANCE = 4;
+
+    let nearest = null;
+    let minDist = Infinity;
+    for (const node in graph) {
+      const [x, y] = node.split(',').map(Number);
+      const d = Math.hypot(x - click[0], y - click[1]);
+      if (d < minDist) {
+        minDist = d;
+        nearest = [x, y];
+      }
+    }
+
+    if (!nearest || minDist > TOLERANCE) {
+      document.getElementById('status').textContent = 'Клик слишком далеко от тоннелей';
+      return;
+    }
+
+    // Определяем цвет маркера
+    let color = 'purple';
+    if (selectedPoints.length === 0) color = 'green';
+    else if (selectedPoints.length === 1) color = 'blue';
+
+    selectedPoints.push(nearest);
+    const marker = L.circle([nearest[1], nearest[0]], {
+      radius: 1,
+      color: color,
+      weight: 2,
+      fillOpacity: 1
+    }).addTo(map);
+    pointMarkers.push(marker);
+
+    if (selectedPoints.length === 1) {
+      document.getElementById('status').textContent = 'Выберите следующую точку маршрута (можно несколько)';
+    } else {
+      buildFullRoute();
+    }
+  });
+
+  // Очистка
+  document.getElementById('clear').onclick = () => {
+    if (routeLayer) map.removeLayer(routeLayer);
+    pointMarkers.forEach(marker => map.removeLayer(marker));
+    
+    routeLayer = null;
+    selectedPoints = [];
+    pointMarkers = [];
+
+    document.getElementById('status').textContent = 'Кликните на схему: выберите точки маршрута (минимум 2)';
+    map.getContainer().classList.remove('clickable');
+  };
+
+  // Загрузка данных
+  fetch('tunnels_json.geojson')
+    .then(res => {
+      if (!res.ok) throw new Error('Файл tunnels_json.geojson не найден');
+      return res.json();
+    })
+    .then(data => {
+      const allCoords = [];
+      segments = [];
+      graph = {};
+
+      data.features.forEach(f => {
+        if (!f.geometry) return;
+        let lines = [];
+        if (f.geometry.type === 'LineString') {
+          lines = [f.geometry.coordinates];
+        } else if (f.geometry.type === 'MultiLineString') {
+          lines = f.geometry.coordinates;
+        } else return;
+
+        lines.forEach(coords => {
+          if (coords.length < 2) return;
+          coords.forEach(pt => allCoords.push(pt));
+          for (let i = 0; i < coords.length - 1; i++) {
+            const a = coords[i];
+            const b = coords[i + 1];
+            segments.push([a, b]);
+
+            const keyA = a.join(',');
+            const keyB = b.join(',');
+            const len = Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+            if (!graph[keyA]) graph[keyA] = {};
+            if (!graph[keyB]) graph[keyB] = {};
+
+            graph[keyA][keyB] = len;
+            graph[keyB][keyA] = len;
+          }
+        });
+      });
+
+      if (allCoords.length === 0) {
+        document.getElementById('status').textContent = 'GeoJSON не содержит координат';
+        return;
+      }
+
+      const xs = allCoords.map(c => c[0]);
+      const ys = allCoords.map(c => c[1]);
+      const bounds = [
+        [Math.min(...ys), Math.min(...xs)],
+        [Math.max(...ys), Math.max(...xs)]
+      ];
+      map.fitBounds(bounds);
+
+      L.imageOverlay('byaki.png', bounds, { opacity: 1 }).addTo(map);
+      
+	  // Не отображаем сеть тоннелей — только подложка и маршрут
+	  // (граф всё равно строится из данных)
+	  //L.geoJSON(data, { style: () => ({ color: '#2196F3', weight: 2 }) }).addTo(map);
+		// Не отображаем сеть тоннелей — только подложка и маршрут
+		// (граф всё равно строится из данных)
+      
+	  document.getElementById('status').textContent = 'Кликните на схему: выберите точки маршрута (минимум 2)';
+    })
+    .catch(err => {
+      console.error("Ошибка:", err);
+      document.getElementById('status').textContent = 'Ошибка: ' + err.message;
+    });
+  </script>
+</body>
+</html>
