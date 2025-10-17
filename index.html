@@ -21,16 +21,35 @@
       font-weight: bold;
       line-height: 1.4;
     }
+
+    /* Увеличенная и жирная кнопка */
+    #clear {
+      font-size: 18px;
+      font-weight: bold;
+      padding: 10px 16px;
+      cursor: pointer;
+      border: 2px solid #ccc;
+      border-radius: 6px;
+      background-color: #f8f8f8;
+    }
+    #clear:hover {
+      background-color: #e0e0e0;
+    }
+
     #status {
       margin-top: 12px;
       color: #333;
     }
+	.header-row {
+	  display: flex;
+	  justify-content: space-between;
+	  align-items: center;
+	  margin-bottom: 12px;
+	}
     #copyright {
-      margin-top: 12px;
       font-size: 14px;
       font-weight: normal;
       color: #666;
-      text-align: right;
     }
 
     #map.clickable {
@@ -66,9 +85,11 @@
 </head>
 <body>
   <div id="controls">
+  <div class="header-row">
     <button id="clear">Очистить маршрут</button>
-    <div id="status">Загрузка карты...</div>
     <div id="copyright">© by Alex Donor</div>
+  </div>
+  <div id="status">Загрузка карты...</div>
   </div>
   <div id="map"></div>
 
@@ -179,10 +200,8 @@
   function buildFullRoute() {
     if (selectedPoints.length < 2) return;
 
-    // Показываем окно загрузки
     document.getElementById('loading-overlay').style.display = 'flex';
 
-    // Откладываем выполнение на следующий тик, чтобы UI обновился
     setTimeout(() => {
       if (routeLayer) map.removeLayer(routeLayer);
       routeLayer = null;
@@ -214,7 +233,6 @@
         }
       }
 
-      // Скрываем окно загрузки ДО обновления статуса
       document.getElementById('loading-overlay').style.display = 'none';
 
       if (!valid) {
@@ -228,7 +246,7 @@
       }).addTo(map);
 
       document.getElementById('status').textContent = `Маршрут: ${totalDistance.toFixed(1)} м (точек: ${selectedPoints.length})`;
-    }, 10); // небольшая задержка для отображения overlay
+    }, 10);
   }
 
   map.on('click', function(e) {
