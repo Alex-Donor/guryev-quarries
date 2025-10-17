@@ -12,18 +12,55 @@
       top: 10px;
       left: 10px;
       background: white;
-      padding: 10px;
-      border-radius: 5px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.4);
       z-index: 1000;
+      min-width: 280px;
+      font-size: 16px;
+      font-weight: bold;
+      line-height: 1.4;
     }
-    #status { margin-top: 8px; font-size: 14px; color: #333; }
+    #status {
+      margin-top: 12px;
+      color: #333;
+    }
+    #copyright {
+      margin-top: 12px;
+      font-size: 14px;
+      font-weight: normal;
+      color: #666;
+      text-align: right;
+    }
 
     #map.clickable {
       cursor: crosshair;
     }
-	.leaflet-control-attribution {
-    display: none !important;
+    .leaflet-control-attribution {
+      display: none !important;
+    }
+
+    /* Модальное окно загрузки */
+    #loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+    }
+    #loading-modal {
+      background: white;
+      padding: 20px 30px;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
     }
   </style>
 </head>
@@ -31,8 +68,14 @@
   <div id="controls">
     <button id="clear">Очистить маршрут</button>
     <div id="status">Загрузка карты...</div>
+    <div id="copyright">© by Alex Donor</div>
   </div>
   <div id="map"></div>
+
+  <!-- Модальное окно загрузки -->
+  <div id="loading-overlay">
+    <div id="loading-modal">Пожалуйста, подождите…<br>Маршрут строится</div>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
@@ -55,13 +98,12 @@
 
   let segments = [];
   let graph = {};
-  let selectedPoints = [];      // Все выбранные точки маршрута
-  let pointMarkers = [];        // Маркеры для точек
-  let routeLayer = null;        // Отображаемый маршрут
+  let selectedPoints = [];
+  let pointMarkers = [];
+  let routeLayer = null;
 
   const CURSOR_TOLERANCE_PX = 1;
 
-  // Обработчик движения мыши — всегда crosshair над тоннелем
   function handleMouseMove(e) {
     const container = map.getContainer();
     container.classList.remove('clickable');
@@ -88,7 +130,6 @@
 
   map.on('mousemove', handleMouseMove);
 
-  // Алгоритм Дейкстры
   function dijkstra(graph, start, end) {
     if (!graph[start] || !graph[end]) return null;
     const dist = {};
@@ -135,54 +176,61 @@
     return path.length > 1 ? path : null;
   }
 
-  // Построение полного маршрута через все точки
   function buildFullRoute() {
     if (selectedPoints.length < 2) return;
 
-    if (routeLayer) map.removeLayer(routeLayer);
-    routeLayer = null;
+    // Показываем окно загрузки
+    document.getElementById('loading-overlay').style.display = 'flex';
 
-    const fullPath = [];
-    let totalDistance = 0;
-    let valid = true;
+    // Откладываем выполнение на следующий тик, чтобы UI обновился
+    setTimeout(() => {
+      if (routeLayer) map.removeLayer(routeLayer);
+      routeLayer = null;
 
-    for (let i = 0; i < selectedPoints.length - 1; i++) {
-      const startKey = selectedPoints[i].join(',');
-      const endKey = selectedPoints[i + 1].join(',');
-      const segmentPath = dijkstra(graph, startKey, endKey);
+      const fullPath = [];
+      let totalDistance = 0;
+      let valid = true;
 
-      if (!segmentPath) {
-        valid = false;
-        break;
+      for (let i = 0; i < selectedPoints.length - 1; i++) {
+        const startKey = selectedPoints[i].join(',');
+        const endKey = selectedPoints[i + 1].join(',');
+        const segmentPath = dijkstra(graph, startKey, endKey);
+
+        if (!segmentPath) {
+          valid = false;
+          break;
+        }
+
+        if (i === 0) {
+          fullPath.push(...segmentPath);
+        } else {
+          fullPath.push(...segmentPath.slice(1));
+        }
+
+        for (let j = 1; j < segmentPath.length; j++) {
+          const a = segmentPath[j - 1];
+          const b = segmentPath[j];
+          totalDistance += Math.hypot(a[0] - b[0], a[1] - b[1]);
+        }
       }
 
-      if (i === 0) {
-        fullPath.push(...segmentPath);
-      } else {
-        fullPath.push(...segmentPath.slice(1));
+      // Скрываем окно загрузки ДО обновления статуса
+      document.getElementById('loading-overlay').style.display = 'none';
+
+      if (!valid) {
+        document.getElementById('status').textContent = 'Не удалось построить маршрут между точками';
+        return;
       }
 
-      for (let j = 1; j < segmentPath.length; j++) {
-        const a = segmentPath[j - 1];
-        const b = segmentPath[j];
-        totalDistance += Math.hypot(a[0] - b[0], a[1] - b[1]);
-      }
-    }
+      routeLayer = L.polyline(fullPath.map(p => [p[1], p[0]]), {
+        color: 'red',
+        weight: 4
+      }).addTo(map);
 
-    if (!valid) {
-      document.getElementById('status').textContent = 'Не удалось построить маршрут между точками';
-      return;
-    }
-
-    routeLayer = L.polyline(fullPath.map(p => [p[1], p[0]]), {
-      color: 'red',
-      weight: 4
-    }).addTo(map);
-
-    document.getElementById('status').textContent = `Маршрут: ${totalDistance.toFixed(1)} м (точек: ${selectedPoints.length})`;
+      document.getElementById('status').textContent = `Маршрут: ${totalDistance.toFixed(1)} м (точек: ${selectedPoints.length})`;
+    }, 10); // небольшая задержка для отображения overlay
   }
 
-  // Обработка кликов
   map.on('click', function(e) {
     if (segments.length === 0) return;
 
@@ -205,7 +253,6 @@
       return;
     }
 
-    // Определяем цвет маркера
     let color = 'purple';
     if (selectedPoints.length === 0) color = 'green';
     else if (selectedPoints.length === 1) color = 'blue';
@@ -226,7 +273,6 @@
     }
   });
 
-  // Очистка
   document.getElementById('clear').onclick = () => {
     if (routeLayer) map.removeLayer(routeLayer);
     pointMarkers.forEach(marker => map.removeLayer(marker));
@@ -239,7 +285,6 @@
     map.getContainer().classList.remove('clickable');
   };
 
-  // Загрузка данных
   fetch('tunnels_json.geojson')
     .then(res => {
       if (!res.ok) throw new Error('Файл tunnels_json.geojson не найден');
@@ -295,13 +340,7 @@
 
       L.imageOverlay('byaki.png', bounds, { opacity: 1 }).addTo(map);
       
-	  // Не отображаем сеть тоннелей — только подложка и маршрут
-	  // (граф всё равно строится из данных)
-	  //L.geoJSON(data, { style: () => ({ color: '#2196F3', weight: 2 }) }).addTo(map);
-		// Не отображаем сеть тоннелей — только подложка и маршрут
-		// (граф всё равно строится из данных)
-      
-	  document.getElementById('status').textContent = 'Кликните на схему: выберите точки маршрута (минимум 2)';
+      document.getElementById('status').textContent = 'Кликните на схему: выберите точки маршрута (минимум 2)';
     })
     .catch(err => {
       console.error("Ошибка:", err);
