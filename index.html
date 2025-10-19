@@ -5,52 +5,219 @@
   <title>Гурьевские каменоломни — Маршрутизация</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    body { margin: 0; padding: 0; }
-    #map { width: 100%; height: 100vh; cursor: default; }
-    #controls {
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Calibri, Arial, sans-serif;
+    }
+    #map {
+      width: 100%;
+      height: 100vh;
+      cursor: default;
+    }
+
+    /* Кнопка меню */
+    #menu-button {
       position: absolute;
       top: 10px;
       left: 10px;
+      width: 40px;
+      height: 40px;
       background: white;
-      padding: 16px;
-      border-radius: 8px;
-      box-shadow: 0 0 12px rgba(0,0,0,0.4);
-      z-index: 1000;
-      min-width: 280px;
-      font-size: 16px;
-      font-weight: bold;
-      line-height: 1.4;
-    }
-
-    #clear {
-      font-size: 18px;
-      font-weight: bold;
-      padding: 10px 16px;
-      cursor: pointer;
       border: 2px solid #ccc;
       border-radius: 6px;
-      background-color: #f8f8f8;
-      margin-top: 8px;
-    }
-    #clear:hover {
-      background-color: #e0e0e0;
-    }
-
-    #status {
-      margin-top: 12px;
-      color: #333;
-    }
-    .header-row {
       display: flex;
+      flex-direction: column;
+      justify-content: center;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
+      cursor: pointer;
+      z-index: 1001;
+      box-shadow: 0 0 8px rgba(0,0,0,0.3);
+    }
+    #menu-button span {
+      display: block;
+      width: 4px;
+      height: 4px;
+      background: #333;
+      border-radius: 50%;
+      margin: 1px 0;
     }
 
+    /* Zoom control */
+    #zoom-control {
+      position: absolute;
+      top: 16px;
+      left: 80px;
+      display: flex;
+      gap: 4px;
+      z-index: 1000;
+    }
+    .zoom-btn {
+      width: 30px;
+      height: 30px;
+      background: white;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    }
+    .zoom-btn:hover {
+      background: #f0f0f0;
+    }
+
+    /* Авторские права */
     #copyright {
+      position: absolute;
+      top: 18px;
+      left: 160px;
+      z-index: 1000;
+      font-size: 13px;
+    }
+    #copyright span {
+      display: inline-block;
+      color: #0066cc; /* Синий текст */
+      font-weight: bold;
+      border: none;
+      background: transparent;
+      padding: 0;
+      text-shadow:
+        -1px -1px 0 red,
+         1px -1px 0 red,
+        -1px  1px 0 red,
+         1px  1px 0 red;
+    }
+
+    /* Выпадающее меню */
+    #dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 55px;
+      left: 10px;
+      background: #e8e8e8;
+      padding: 16px 2px;
+      border-radius: 8px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.5);
+      z-index: 1000;
+      width: fit-content;
       font-size: 14px;
-      font-weight: normal;
-      color: #666;
+      font-family: Calibri, Arial, sans-serif;
+    }
+    #dropdown-menu.active {
+      display: block;
+    }
+
+    .menu-section {
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .menu-label {
+      display: block;
+      font-weight: bold;
+      color: #222;
+      margin-bottom: 6px;
+      text-shadow: 0 0 4px white, 0 0 6px white;
+      font-family: Calibri, Arial, sans-serif;
+    }
+
+    input[type="text"],
+    select {
+      width: auto;
+      min-width: 0;
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #999;
+      border-radius: 4px;
+      box-sizing: border-box;
+      background: white;
+      font-family: Calibri, Arial, sans-serif;
+    }
+
+    .menu-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: bold;
+      font-size: 14px;
+      background: #dcdcdc;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 10px 12px;
+      white-space: nowrap;
+      font-family: Calibri, Arial, sans-serif;
+    }
+    .menu-btn:hover {
+      background: #ccc;
+    }
+
+    /* Контейнер для кнопки загрузки маршрута */
+    .load-route-container {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      width: fit-content;
+    }
+
+    /* Кнопка "Загрузите маршрут" — компактная */
+    #load-route {
+      width: auto;
+      max-width: max-content;
+      padding: 10px 12px;
+      white-space: nowrap;
+    }
+
+    #file-input {
+      display: none;
+    }
+
+    /* Статусная панель */
+    #status {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: #e8e8e8;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      color: #222;
+      z-index: 1000;
+      max-width: 300px;
+      line-height: 1.4;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+      font-family: Calibri, Arial, sans-serif;
+    }
+
+    .route-distance {
+      color: red;
+      font-weight: bold;
+    }
+
+    /* Кнопка очистки */
+    #clear-route-btn {
+      position: absolute;
+      bottom: 70px;
+      left: 12px;
+      padding: 8px 12px;
+      font-size: 14px;
+      background: #dcdcdc;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      cursor: pointer;
+      z-index: 1000;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+      font-weight: bold;
+      font-family: Calibri, Arial, sans-serif;
+    }
+    #clear-route-btn:hover {
+      background: #ccc;
     }
 
     #map.clickable {
@@ -60,13 +227,6 @@
       display: none !important;
     }
 
-    /* Смещаем контрол масштабирования под панель управления */
-    .leaflet-top.leaflet-left {
-      top: calc(10px + 160px) !important; /* увеличенный отступ из-за select */
-      left: 10px !important;
-    }
-
-    /* Модальное окно загрузки */
     #loading-overlay {
       display: none;
       position: fixed;
@@ -87,35 +247,57 @@
       font-weight: bold;
       text-align: center;
       box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-    }
-
-    /* Стиль для выпадающего списка */
-    #background-select {
-      font-size: 14px;
-      padding: 4px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      margin-top: 4px;
-      width: 100%;
+      font-family: Calibri, Arial, sans-serif;
     }
   </style>
 </head>
 <body>
-<div id="controls">
-  <div class="header-row">
-    <button id="clear">Очистить маршрут</button>
-    <div id="copyright">© by Alex Donor</div>
-  </div>
-  <select id="background-select">
-    <option value="byaki.png">Базовая карта</option>
-    <option value="map2.png">Карта с заливкой</option>
-    <!-- Добавьте другие варианты по необходимости -->
-  </select>
-  <div id="status">Загрузка карты...</div>
+<div id="menu-button">
+  <span></span>
+  <span></span>
+  <span></span>
 </div>
-<div id="map"></div>
 
-<!-- Модальное окно загрузки -->
+<div id="zoom-control">
+  <div class="zoom-btn" id="zoom-in">+</div>
+  <div class="zoom-btn" id="zoom-out">−</div>
+</div>
+
+<div id="copyright">
+  <span>© by Alex Donor</span>
+</div>
+
+<div id="dropdown-menu">
+  <div class="menu-section">
+    <span class="menu-label">Выберите карту:</span>
+    <select id="background-select">
+      <option value="byaki.png">Базовая карта ▼</option>
+      <option value="map2.png">Карта с заливкой</option>
+    </select>
+  </div>
+
+  <div class="menu-section">
+    <span class="menu-label">Сохранить маршрут:</span>
+    <div style="display: flex; gap: 6px; align-items: center;">
+      <input type="text" id="route-name" placeholder="Введите название" value="Мой маршрут">
+      <button class="menu-btn" id="save-route">💾</button>
+    </div>
+  </div>
+
+  <div class="menu-section">
+    <span class="menu-label"> Загрузить маршрут:</span>
+    <div class="load-route-container">
+      <button class="menu-btn" id="load-route">📁 Выберите файл...</button>
+      <input type="file" id="file-input" accept=".json">
+    </div>
+  </div>
+</div>
+
+<button id="clear-route-btn">🗑️ Очистить маршрут</button>
+
+<div id="map"></div>
+<div id="status">Загрузка карты...</div>
+
 <div id="loading-overlay">
   <div id="loading-modal">Пожалуйста, подождите…<br>Маршрут строится</div>
 </div>
@@ -125,9 +307,16 @@
   const map = L.map('map', {
     crs: L.CRS.Simple,
     minZoom: 0.05,
-    maxZoom: 4
+    maxZoom: 4,
+    zoomControl: false
   });
-  map.zoomControl.setPosition('topleft');
+
+  document.getElementById('zoom-in').addEventListener('click', () => {
+    if (map.getZoom() < map.getMaxZoom()) map.zoomIn();
+  });
+  document.getElementById('zoom-out').addEventListener('click', () => {
+    if (map.getZoom() > map.getMinZoom()) map.zoomOut();
+  });
 
   function distToSegment(p, v, w) {
     const dx = w[0] - v[0];
@@ -145,14 +334,14 @@
   let pointMarkers = [];
   let routeLayer = null;
   let currentImageOverlay = null;
-  let mapBounds = null; // Сохраняем bounds для переключения подложек
+  let mapBounds = null;
+  let menuOpen = false;
 
   const CURSOR_TOLERANCE_PX = 1;
 
   function handleMouseMove(e) {
     const container = map.getContainer();
     container.classList.remove('clickable');
-
     if (segments.length === 0) return;
 
     const mouse = [e.latlng.lng, e.latlng.lat];
@@ -160,20 +349,25 @@
     const p2 = map.containerPointToLayerPoint([CURSOR_TOLERANCE_PX, 0]);
     const tolerance = Math.abs(p2.x - p1.x);
 
-    let nearTunnel = false;
     for (let i = 0; i < segments.length; i++) {
       if (distToSegment(mouse, segments[i][0], segments[i][1]) <= tolerance) {
-        nearTunnel = true;
-        break;
+        container.classList.add('clickable');
+        return;
       }
-    }
-
-    if (nearTunnel) {
-      container.classList.add('clickable');
     }
   }
 
   map.on('mousemove', handleMouseMove);
+
+  function clearRoute() {
+    if (routeLayer) map.removeLayer(routeLayer);
+    pointMarkers.forEach(marker => map.removeLayer(marker));
+    routeLayer = null;
+    selectedPoints = [];
+    pointMarkers = [];
+    document.getElementById('status').textContent = 'Кликните на схему для выбора точек маршрута';
+    map.getContainer().classList.remove('clickable');
+  }
 
   function dijkstra(graph, start, end) {
     if (!graph[start] || !graph[end]) return null;
@@ -225,7 +419,6 @@
     if (selectedPoints.length < 2) return;
 
     document.getElementById('loading-overlay').style.display = 'flex';
-
     setTimeout(() => {
       if (routeLayer) map.removeLayer(routeLayer);
       routeLayer = null;
@@ -238,18 +431,15 @@
         const startKey = selectedPoints[i].join(',');
         const endKey = selectedPoints[i + 1].join(',');
         const segmentPath = dijkstra(graph, startKey, endKey);
-
         if (!segmentPath) {
           valid = false;
           break;
         }
-
         if (i === 0) {
           fullPath.push(...segmentPath);
         } else {
           fullPath.push(...segmentPath.slice(1));
         }
-
         for (let j = 1; j < segmentPath.length; j++) {
           const a = segmentPath[j - 1];
           const b = segmentPath[j];
@@ -260,7 +450,7 @@
       document.getElementById('loading-overlay').style.display = 'none';
 
       if (!valid) {
-        document.getElementById('status').textContent = 'Не удалось построить маршрут между точками';
+        document.getElementById('status').textContent = 'Не удалось построить маршрут';
         return;
       }
 
@@ -269,12 +459,13 @@
         weight: 4
       }).addTo(map);
 
-      document.getElementById('status').textContent = `Маршрут: ${totalDistance.toFixed(1)} м (точек: ${selectedPoints.length})`;
+      document.getElementById('status').innerHTML =
+        `Маршрут: <span class="route-distance">${totalDistance.toFixed(1)} м</span> (точек: ${selectedPoints.length})`;
     }, 10);
   }
 
   map.on('click', function(e) {
-    if (segments.length === 0) return;
+    if (menuOpen || segments.length === 0) return;
 
     const click = [e.latlng.lng, e.latlng.lat];
     const TOLERANCE = 4;
@@ -309,41 +500,119 @@
     pointMarkers.push(marker);
 
     if (selectedPoints.length === 1) {
-      document.getElementById('status').textContent = 'Выберите следующую точку маршрута (можно несколько)';
+      document.getElementById('status').textContent = 'Выберите следующую точку маршрута';
     } else {
       buildFullRoute();
     }
   });
 
-  document.getElementById('clear').onclick = () => {
-    if (routeLayer) map.removeLayer(routeLayer);
-    pointMarkers.forEach(marker => map.removeLayer(marker));
+  const menuButton = document.getElementById('menu-button');
+  const dropdownMenu = document.getElementById('dropdown-menu');
 
-    routeLayer = null;
-    selectedPoints = [];
-    pointMarkers = [];
+  menuButton.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menuOpen = !menuOpen;
+    dropdownMenu.classList.toggle('active', menuOpen);
+  });
 
-    document.getElementById('status').textContent = 'Кликните на схему: выберите точки маршрута (минимум 2)';
-    map.getContainer().classList.remove('clickable');
-  };
-
-  // Функция обновления подложки
-  function updateImageOverlay(imageUrl, bounds) {
-    if (currentImageOverlay) {
-      map.removeLayer(currentImageOverlay);
-    }
-    currentImageOverlay = L.imageOverlay(imageUrl, bounds, { opacity: 1 }).addTo(map);
-  }
-
-  // Обработчик выбора подложки
-  document.getElementById('background-select').addEventListener('change', function(e) {
-    const selectedFile = e.target.value;
-    if (mapBounds) {
-      updateImageOverlay(selectedFile, mapBounds);
+  document.addEventListener('click', () => {
+    if (menuOpen) {
+      menuOpen = false;
+      dropdownMenu.classList.remove('active');
     }
   });
 
-  // Загрузка данных
+  dropdownMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  document.getElementById('clear-route-btn').addEventListener('click', clearRoute);
+
+  document.getElementById('background-select').addEventListener('change', function(e) {
+    if (mapBounds) {
+      if (currentImageOverlay) map.removeLayer(currentImageOverlay);
+      currentImageOverlay = L.imageOverlay(e.target.value, mapBounds, { opacity: 1 }).addTo(map);
+    }
+  });
+
+  document.getElementById('save-route').addEventListener('click', () => {
+    if (selectedPoints.length < 2) {
+      alert('Нет маршрута для сохранения (нужно минимум 2 точки)');
+      return;
+    }
+
+    const routeName = document.getElementById('route-name').value.trim() || 'Мой маршрут';
+    const data = { version: 1, name: routeName, points: selectedPoints };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+
+    const safeName = routeName
+      .replace(/[^\wа-яА-ЯёЁ\s.-]/g, '_')
+      .replace(/\s+/g, '_')
+      .replace(/_{2,}/g, '_')
+      .trim() || 'Маршрут';
+    a.download = safeName + '.json';
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    document.getElementById('route-name').value = 'Мой маршрут';
+
+    menuOpen = false;
+    dropdownMenu.classList.remove('active');
+  });
+
+  document.getElementById('load-route').addEventListener('click', () => {
+    document.getElementById('file-input').click();
+  });
+
+  document.getElementById('file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        if (!data.points || !Array.isArray(data.points) || data.points.length < 2) {
+          throw new Error('Некорректный формат файла');
+        }
+
+        clearRoute();
+        selectedPoints = data.points.map(pt => [...pt]);
+        selectedPoints.forEach((pt, idx) => {
+          let color = 'purple';
+          if (idx === 0) color = 'green';
+          else if (idx === selectedPoints.length - 1) color = 'blue';
+
+          const marker = L.circle([pt[1], pt[0]], {
+            radius: 1,
+            color: color,
+            weight: 2,
+            fillOpacity: 1
+          }).addTo(map);
+          pointMarkers.push(marker);
+        });
+
+        buildFullRoute();
+        if (data.name) {
+          document.getElementById('route-name').value = data.name;
+        }
+        menuOpen = false;
+        dropdownMenu.classList.remove('active');
+      } catch (err) {
+        alert('Ошибка при загрузке маршрута: ' + err.message);
+      } finally {
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  });
+
   fetch('tunnels_json.geojson')
     .then(res => {
       if (!res.ok) throw new Error('Файл tunnels_json.geojson не найден');
@@ -357,11 +626,9 @@
       data.features.forEach(f => {
         if (!f.geometry) return;
         let lines = [];
-        if (f.geometry.type === 'LineString') {
-          lines = [f.geometry.coordinates];
-        } else if (f.geometry.type === 'MultiLineString') {
-          lines = f.geometry.coordinates;
-        } else return;
+        if (f.geometry.type === 'LineString') lines = [f.geometry.coordinates];
+        else if (f.geometry.type === 'MultiLineString') lines = f.geometry.coordinates;
+        else return;
 
         lines.forEach(coords => {
           if (coords.length < 2) return;
@@ -397,9 +664,8 @@
       ];
       map.fitBounds(mapBounds);
 
-      updateImageOverlay('byaki.png', mapBounds);
-
-      document.getElementById('status').textContent = 'Кликните на схему: выберите точки маршрута (минимум 2)';
+      currentImageOverlay = L.imageOverlay('byaki.png', mapBounds, { opacity: 1 }).addTo(map);
+      document.getElementById('status').textContent = 'Кликните на схему для выбора точек маршрута';
     })
     .catch(err => {
       console.error("Ошибка:", err);
