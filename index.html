@@ -22,7 +22,6 @@
       line-height: 1.4;
     }
 
-    /* Увеличенная и жирная кнопка */
     #clear {
       font-size: 18px;
       font-weight: bold;
@@ -40,12 +39,13 @@
       margin-top: 12px;
       color: #333;
     }
-	.header-row {
-	  display: flex;
-	  justify-content: space-between;
-	  align-items: center;
-	  margin-bottom: 12px;
-	}
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
     #copyright {
       font-size: 14px;
       font-weight: normal;
@@ -57,6 +57,12 @@
     }
     .leaflet-control-attribution {
       display: none !important;
+    }
+
+    /* Смещаем контрол масштабирования под панель управления */
+    .leaflet-top.leaflet-left {
+      top: calc(10px + 110px) !important; /* отступ сверху + высота #controls */
+      left: 10px !important;
     }
 
     /* Модальное окно загрузки */
@@ -84,28 +90,28 @@
   </style>
 </head>
 <body>
-  <div id="controls">
+<div id="controls">
   <div class="header-row">
     <button id="clear">Очистить маршрут</button>
     <div id="copyright">© by Alex Donor</div>
   </div>
   <div id="status">Загрузка карты...</div>
-  </div>
-  <div id="map"></div>
+</div>
+<div id="map"></div>
 
-  <!-- Модальное окно загрузки -->
-  <div id="loading-overlay">
-    <div id="loading-modal">Пожалуйста, подождите…<br>Маршрут строится</div>
-  </div>
+<!-- Модальное окно загрузки -->
+<div id="loading-overlay">
+  <div id="loading-modal">Пожалуйста, подождите…<br>Маршрут строится</div>
+</div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
   const map = L.map('map', {
     crs: L.CRS.Simple,
     minZoom: 0.05,
     maxZoom: 4
   });
-  map.zoomControl.setPosition('topright');
+  map.zoomControl.setPosition('topleft');
 
   function distToSegment(p, v, w) {
     const dx = w[0] - v[0];
@@ -294,7 +300,7 @@
   document.getElementById('clear').onclick = () => {
     if (routeLayer) map.removeLayer(routeLayer);
     pointMarkers.forEach(marker => map.removeLayer(marker));
-    
+
     routeLayer = null;
     selectedPoints = [];
     pointMarkers = [];
@@ -357,13 +363,13 @@
       map.fitBounds(bounds);
 
       L.imageOverlay('byaki.png', bounds, { opacity: 1 }).addTo(map);
-      
+
       document.getElementById('status').textContent = 'Кликните на схему: выберите точки маршрута (минимум 2)';
     })
     .catch(err => {
       console.error("Ошибка:", err);
       document.getElementById('status').textContent = 'Ошибка: ' + err.message;
     });
-  </script>
+</script>
 </body>
 </html>
